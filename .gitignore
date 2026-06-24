@@ -1,0 +1,11 @@
+# Interne Notizen / lokale Assets nicht veröffentlichen
+COMPASS_CONTEXT.md
+COACH_PERSONA.md
+*.png
+*.jpg
+*.jpeg
+
+# OS-Müll
+.DS_Store
+Thumbs.db
+desktop.ini
