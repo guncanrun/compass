@@ -813,4 +813,16 @@ async function render(){
   document.querySelectorAll(".pred .p").forEach(el=>{const go=()=>openPredModal(+el.dataset.d,el.dataset.l);el.onclick=go;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};});
   {const v2el=document.querySelector(".vo2card");if(v2el){const go=()=>openVo2Modal();v2el.onclick=go;v2el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};}}
   document.querySelectorAll("[data-eid]").forEach(el=>{const go=()=>openWorkoutModal(+el.dataset.eid);el.onclick=go;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};});
-  document.querySelectorAll(".rt").forEach(b=>b.onclick=()=>{c2range=b.dataset.r;document.querySelectorAll(".rt").forEach(x=>x.classList.toggle("activ
+  document.querySelectorAll(".rt").forEach(b=>b.onclick=()=>{c2range=b.dataset.r;document.querySelectorAll(".rt").forEach(x=>x.classList.toggle("active",x===b));if(document.getElementById("tab-form").style.display!=="none")buildChart2();});
+}
+
+function askKey(){
+  document.body.insertAdjacentHTML("beforeend",`<div class="ov"><div class="box"><h3>API-Key</h3><p>Einmalig. Nur im Browser (localStorage), nie in der Datei.</p><label>Athlete-ID</label><input id="ka" value="${ATHLETE}"><label>API-Key</label><input id="kk" type="password" placeholder="intervals.icu → Settings → Developer"><button id="kb">Speichern & laden</button></div></div>`);
+  document.getElementById("kb").onclick=()=>{const k=document.getElementById("kk").value.trim();if(!k)return;KEY=k;localStorage.setItem("loop_icu_key",k);document.querySelector(".ov").remove();render();};
+}
+(function(){const s=localStorage.getItem("compass_theme");if(s)document.documentElement.setAttribute("data-theme",s);
+  const btn=document.getElementById("themebtn");
+  const eff=()=>document.documentElement.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
+  if(btn)btn.onclick=()=>{const n=eff()==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",n);localStorage.setItem("compass_theme",n);if(KEY)render();};})();
+if(KEY)render(); else askKey();
+</script>
