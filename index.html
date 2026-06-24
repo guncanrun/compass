@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>COMPASS · Gun</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMmU5ZTRmIiBzdHJva2Utd2lkdGg9IjE4Ii8+PHBvbHlnb24gcG9pbnRzPSI1MCwyNCA2Niw3MCA1MCw1OCAzNCw3MCIgZmlsbD0iIzJlOWU0ZiIvPjwvc3ZnPg==">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -157,6 +157,7 @@ body::before{content:"";position:fixed;top:0;left:0;right:0;bottom:0;background-
 .kwcell .kwn{font-size:22px;font-weight:800;line-height:1;}
 .kwcell .kwm{font-size:11px;color:var(--muted);margin-top:4px;}
 .daynum{position:absolute;top:7px;right:9px;font-size:12px;color:var(--muted);font-weight:600;}
+.gc-wd{display:none;}
 .band{padding-top:4px;}
 .band.bm{border-top:1px solid var(--line2);margin-top:8px;}
 .entry{border-left:3px solid var(--muted);padding:3px 0 3px 7px;margin:6px 0;display:block;text-decoration:none;color:var(--ink);border-radius:0 4px 4px 0;cursor:pointer;}
@@ -204,6 +205,32 @@ body::before{content:"";position:fixed;top:0;left:0;right:0;bottom:0;background-
 .ov label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin:10px 0 4px;}
 .ov button{margin-top:16px;width:100%;padding:11px;border:0;border-radius:9px;background:var(--blue);color:#fff;font-weight:600;font-size:15px;cursor:pointer;}
 @media (max-width:680px){ .hero{grid-template-columns:1fr 1fr;gap:10px;} .hero .col{border-left:0;padding:10px;} .pred{grid-template-columns:1fr;gap:12px;} .pred .p{border-left:0;padding:0;} .grow{grid-template-columns:repeat(2,1fr);} .grow .gc:last-child{grid-column:1/-1;} }
+@media (max-width:430px){
+  body{padding:12px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));padding-bottom:max(12px,env(safe-area-inset-bottom));}
+  .hero{gap:8px;}
+  .hero .big{font-size:26px;min-height:26px;}
+  .hero .big small{font-size:14px;}
+  .hero .col{padding:9px 10px;}
+  .hero .lbl{font-size:10px;letter-spacing:.06em;}
+  .kurs{gap:12px;}
+  .compass{width:56px;height:56px;}
+  .kurs-lbl{font-size:18px;}
+  .chartbox{height:200px;}
+  .mbox .mc{height:200px;}
+  .tabs{display:flex;flex-wrap:wrap;}
+  .tb{padding:6px 10px;font-size:11px;}
+  .pred .pt{font-size:24px;}
+  .mbox{width:94%;max-height:90vh;overflow:auto;padding:16px;}
+  .ghead{display:none;}
+  .grow{grid-template-columns:1fr;}
+  .body .gc{min-height:auto;border-left:0;border-top:1px solid var(--line2);}
+  .body .gc:first-child{border-top:0;}
+  .gc-wd{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+  .gc.today .gc-wd{color:var(--link);}
+  .kwcell{flex-direction:row;align-items:baseline;gap:8px;}
+  .kwcell .kwn{font-size:16px;}
+  .kwcell .kwm{margin-top:0;}
+}
 </style>
 </head>
 <body>
@@ -586,13 +613,13 @@ async function render(){
 
   let ghead=`<div class="grow ghead"><div class="gc">KW</div>`+DOW.map(d=>`<div class="gc">${d}</div>`).join("")+`<div class="gc">WOCHE</div></div>`;
   let cells=`<div class="gc kwcell"><div class="kwn mono">${isoWeek(mon)}</div><div class="kwm">${deD(mon)}</div></div>`;
-  dates.forEach(d=>{const k=ymd(d);const isPast=k<todayKey;
+  dates.forEach((d,i)=>{const k=ymd(d);const isPast=k<todayKey;
     const da=(aByDate[k]||[]).map(a=>({...a,_meta:sportMeta(a.type),_rpe:a.icu_rpe!=null?a.icu_rpe:null}));
     const de=(eByDate[k]||[]).map(e=>({...e,_meta:(e.category||"").startsWith("RACE")?{lbl:"WETTKAMPF · "+e.category.slice(5),c:"var(--race)",band:"top"}:sportMeta(e.type||"Run")}));
     const rt=dayBand(da,de,"top",isPast), rm=dayBand(da,de,"mid",isPast);
     const st=(rt.anyDone||rm.anyDone)?" st-done":((rt.anyMiss||rm.anyMiss)?" st-miss":"");
     const top=rt.html, mid=rm.html;
-    cells+=`<div class="gc${k===todayKey?" today":""}${st}"><div class="daynum">${d.getDate()===1?"1. "+MON[d.getMonth()]:d.getDate()}</div><div class="band">${top}</div>${mid?`<div class="band bm">${mid}</div>`:``}</div>`;
+    cells+=`<div class="gc${k===todayKey?" today":""}${st}"><div class="gc-wd">${DOW[i]}</div><div class="daynum">${d.getDate()===1?"1. "+MON[d.getMonth()]:d.getDate()}</div><div class="band">${top}</div>${mid?`<div class="band bm">${mid}</div>`:``}</div>`;
   });
   const gMain=planDistM>0?`${(planDistM/1000).toFixed(1)} <small>km</small>`:(planSec>0?`${hm(planSec)} <small>h</small>`:`—`);
   const gSub=[];if(planDistM>0&&planSec>0)gSub.push(hm(planSec)+" h");if(planLoad>0)gSub.push("Load "+planLoad);gSub.push(wkTarget?"Wochenziel":(plan.length+" Sessions"));
@@ -786,18 +813,4 @@ async function render(){
   document.querySelectorAll(".pred .p").forEach(el=>{const go=()=>openPredModal(+el.dataset.d,el.dataset.l);el.onclick=go;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};});
   {const v2el=document.querySelector(".vo2card");if(v2el){const go=()=>openVo2Modal();v2el.onclick=go;v2el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};}}
   document.querySelectorAll("[data-eid]").forEach(el=>{const go=()=>openWorkoutModal(+el.dataset.eid);el.onclick=go;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};});
-  document.querySelectorAll(".rt").forEach(b=>b.onclick=()=>{c2range=b.dataset.r;document.querySelectorAll(".rt").forEach(x=>x.classList.toggle("active",x===b));if(document.getElementById("tab-form").style.display!=="none")buildChart2();});
-}
-
-function askKey(){
-  document.body.insertAdjacentHTML("beforeend",`<div class="ov"><div class="box"><h3>API-Key</h3><p>Einmalig. Nur im Browser (localStorage), nie in der Datei.</p><label>Athlete-ID</label><input id="ka" value="${ATHLETE}"><label>API-Key</label><input id="kk" type="password" placeholder="intervals.icu → Settings → Developer"><button id="kb">Speichern & laden</button></div></div>`);
-  document.getElementById("kb").onclick=()=>{const k=document.getElementById("kk").value.trim();if(!k)return;KEY=k;localStorage.setItem("loop_icu_key",k);document.querySelector(".ov").remove();render();};
-}
-(function(){const s=localStorage.getItem("compass_theme");if(s)document.documentElement.setAttribute("data-theme",s);
-  const btn=document.getElementById("themebtn");
-  const eff=()=>document.documentElement.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
-  if(btn)btn.onclick=()=>{const n=eff()==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",n);localStorage.setItem("compass_theme",n);if(KEY)render();};})();
-if(KEY)render(); else askKey();
-</script>
-</body>
-</html>
+  document.querySelectorAll(".rt").forEach(b=>b.onclick=()=>{c2range=b.dataset.r;document.querySelectorAll(".rt").forEach(x=>x.classList.toggle("activ
