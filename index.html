@@ -728,6 +728,8 @@ async function render(){
       </g></g>
     </svg>`;
   }
+  const _missV=[];if(cur.hrv==null)_missV.push("HRV");if(cur.restingHR==null)_missV.push("RHR");
+  const vitalsHint=_missV.length?`<div class="kurs-meta" style="color:var(--warn);margin-top:5px">⚠ Heute noch keine ${_missV.join(" & ")}-Daten — Garmin Connect ggf. noch nicht synchronisiert.</div>`:"";
   const kursHero=`<div class="card kurs">
     <div class="compass-wrap">${compassSVG(kursAngle,kursCol,{glow:true,thin:true,ticks:true})}</div>
     <div class="kurs-txt">
@@ -735,6 +737,7 @@ async function render(){
       <div class="kurs-status">${readyState==='good'?'🟢':readyState==='warn'?'🟡':'🔴'} ${readyState==='good'?'Bereit':readyState==='warn'?'Beobachten':'Vorsicht'}</div>
       ${todayCmd}
       ${rdHTML}
+      ${vitalsHint}
       <div class="kurs-mot">${todayDone?'Einheit im Kasten ✓ – ':''}${kursMot}</div>
       <div class="kurs-meta">${kursStreak>0?`🔥 ${kursStreak} Wo. in Folge im Plan · `:""}Diese Woche ${complPct!=null?complPct+"% der Wochenlast":istLoad+" Load"}</div>
     </div></div>`;
