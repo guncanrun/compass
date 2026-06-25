@@ -196,7 +196,7 @@ body::before{content:"";position:fixed;top:0;left:0;right:0;bottom:0;background-
 .wk .bar span{display:block;height:100%;}
 .wk .leg{font-size:10px;color:var(--muted);}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;}
-.dot.good{background:var(--good);} .dot.warn{background:var(--warn);} .dot.bad{background:var(--bad);}
+.dot.good{background:var(--muted);} .dot.warn{background:var(--warn);} .dot.bad{background:var(--bad);}
 .rdwarn{color:var(--warn);font-weight:600;} .rdbad{color:var(--bad);font-weight:600;}
 .wk hr{border:0;border-top:1px solid var(--line2);margin:10px 0;}
 
@@ -459,7 +459,7 @@ function openWorkoutModal(idx){
 function tsbZone(t){
   if(t>=10) return {name:"Detraining",cls:"grey"};
   if(t>=5)  return {name:"Race-Day (Taper)",cls:"good"};
-  if(t>=-10)return {name:"Sweetspot",cls:"good"};
+  if(t>=-10)return {name:"Sweetspot",cls:"grey"};
   if(t>=-30)return {name:"Funktionale Überlastung",cls:"warn"};
   return {name:"Gefahrenzone",cls:"bad"};
 }
@@ -613,8 +613,8 @@ async function render(){
   let c28=0,seen28=false;const k28=1-Math.exp(-1/28);
   dlrows.forEach(x=>{c28=seen28?c28+(x.l-c28)*k28:x.l;seen28=true;});
   const acwr=c28>0?+(atl/c28).toFixed(2):0;
-  const acwrColor=acwr<0.8?'var(--muted)':acwr<=1.3?'var(--good)':acwr<=1.5?'var(--warn)':'var(--bad)';
-  const acwrPill=acwr<0.8?{t:'Unterbelastung',c:'warn'}:acwr<=1.3?{t:'Optimalbereich',c:'good'}:acwr<=1.5?{t:'Überlastungszone',c:'warn'}:{t:'Übertrainingsrisiko',c:'bad'};
+  const acwrColor=acwr<0.8?'var(--muted)':acwr<=1.3?'var(--ink)':acwr<=1.5?'var(--warn)':'var(--bad)';
+  const acwrPill=acwr<0.8?{t:'Unterbelastung',c:'warn'}:acwr<=1.3?{t:'Optimalbereich',c:'grey'}:acwr<=1.5?{t:'Überlastungszone',c:'warn'}:{t:'Übertrainingsrisiko',c:'bad'};
   const vo2Series=wsorted.filter(w=>w.vo2max!=null).map(w=>({d:(w.id||w.date||"").slice(0,10),v:w.vo2max}));
   const vo2Cur=vo2Series.length?vo2Series[vo2Series.length-1].v:(cur.vo2max||null);
   let vo2Past=null;
@@ -682,7 +682,7 @@ async function render(){
   const rampOff=ramp==null?0:(ramp>8?1:ramp>5?0.5:(ramp<-3?0.4:0));
   const kursOff=(readyOff+acwrOff+rampOff)/3;
   const kursAngle=kursOff<0.06?0:Math.round(kursOff*90);
-  const kursCol=kursOff<0.17?"var(--good)":kursOff<0.4?"var(--warn)":"var(--bad)";
+  const kursCol=kursOff<0.17?"var(--ink)":kursOff<0.4?"var(--warn)":"var(--bad)";
   const _bo=document.getElementById("brandO"); if(_bo)_bo.innerHTML=compassSVG(kursAngle,kursCol,{cls:"compass"});
   const kursLbl=kursOff<0.17?"Auf Kurs":kursOff<0.4?"Leichte Abweichung":"Kurskorrektur";
   const todayEvs=(evs||[]).filter(e=>e.category==="WORKOUT"&&(e.start_date_local||"").slice(0,10)===todayKey);
@@ -744,7 +744,7 @@ async function render(){
     <div class="compass-wrap">${compassSVG(kursAngle,kursCol,{glow:true,thin:true,ticks:true})}</div>
     <div class="kurs-txt">
       <div class="kurs-lbl" style="color:${kursCol}">${kursLbl}${kursAngle?` · ${kursAngle}° ab Nord`:""}</div>
-      <div class="kurs-status">${readyState==='good'?'🟢':readyState==='warn'?'🟡':'🔴'} ${readyState==='good'?'Bereit':readyState==='warn'?'Beobachten':'Vorsicht'}</div>
+      <div class="kurs-status">${readyState==='good'?'⚪':readyState==='warn'?'🟡':'🔴'} ${readyState==='good'?'Bereit':readyState==='warn'?'Beobachten':'Vorsicht'}</div>
       ${todayCmd}
       ${rdHTML}
       ${vitalsHint}
