@@ -196,6 +196,23 @@ body::before{content:"";position:fixed;top:0;left:0;right:0;bottom:0;background-
 
 .daterow{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);margin-bottom:14px;}
 .daterow b{color:var(--ink);}
+.wxcard{display:flex;align-items:center;gap:14px;cursor:pointer;border-left:4px solid var(--line);}
+.wxcard:hover{box-shadow:0 6px 18px rgba(22,32,43,.08);}
+.wxcard.wx-green{border-left-color:var(--good);}
+.wxcard.wx-amber{border-left-color:var(--warn);}
+.wxcard.wx-red{border-left-color:var(--bad);}
+.wxcard.wx-blue{border-left-color:var(--blue);}
+.wxcard .wx-ic{font-size:30px;line-height:1;}
+.wxcard .wx-main{flex:1;min-width:0;}
+.wxcard .wx-tmp{font-size:20px;font-weight:800;line-height:1;}
+.wxcard .wx-tmp small{font-size:14px;color:var(--muted);font-weight:600;}
+.wxcard .wx-desc{font-size:11.5px;color:var(--muted);margin-top:4px;}
+.wxcard .wx-hint{font-size:10.5px;color:var(--muted);white-space:nowrap;}
+.wxh{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;}
+.wxh th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;padding:4px 8px;border-bottom:1px solid var(--line);}
+.wxh td{padding:5px 8px;border-bottom:1px solid var(--line2);}
+.wxh td.c{text-align:center;}
+.wxh .wt{font-weight:700;}
 .foott{font-size:11px;color:var(--muted);margin-top:12px;display:flex;justify-content:space-between;}
 .err{background:#fdecee;border:1px solid #f5c2c8;color:#a02736;padding:14px;border-radius:10px;font-size:13px;margin:12px 0;}
 .ov{position:fixed;inset:0;background:rgba(14,17,22,.55);display:flex;align-items:center;justify-content:center;z-index:9;}
@@ -230,6 +247,7 @@ body::before{content:"";position:fixed;top:0;left:0;right:0;bottom:0;background-
   .kwcell{flex-direction:row;align-items:baseline;gap:8px;}
   .kwcell .kwn{font-size:16px;}
   .kwcell .kwm{margin-top:0;}
+  .wxcard .wx-hint{display:none;}
 }
 </style>
 </head>
@@ -273,6 +291,9 @@ function sportMeta(type){
 const badgeColor=r=>r==null?"var(--muted)":(r<=3?"var(--good)":r<=6?"var(--orange)":"var(--race)");
 const pace=(sec,m)=>{if(!sec||!m)return null;return secPace(sec/(m/1000));};
 const estKm=e=>e.distance?e.distance/1000:(RUNTYPES.includes(e.type)&&e.moving_time?e.moving_time/360:0);
+const WXMAP={0:["☀️","Klar"],1:["🌤️","Heiter"],2:["⛅","Wolkig"],3:["☁️","Bedeckt"],45:["🌫️","Nebel"],48:["🌫️","Nebel"],51:["🌦️","Niesel"],53:["🌦️","Niesel"],55:["🌦️","Niesel"],56:["🌧️","Gefr. Niesel"],57:["🌧️","Gefr. Niesel"],61:["🌧️","Regen"],63:["🌧️","Regen"],65:["🌧️","Starkregen"],66:["🌧️","Gefr. Regen"],67:["🌧️","Gefr. Regen"],71:["🌨️","Schnee"],73:["🌨️","Schnee"],75:["🌨️","Starkschnee"],77:["🌨️","Schneegriesel"],80:["🌦️","Schauer"],81:["🌦️","Schauer"],82:["⛈️","Heftige Schauer"],85:["🌨️","Schneeschauer"],86:["🌨️","Schneeschauer"],95:["⛈️","Gewitter"],96:["⛈️","Gewitter/Hagel"],99:["⛈️","Gewitter/Hagel"]};
+const wxIcon=c=>(WXMAP[c]||["🌡️"])[0];
+const wxDesc=c=>(WXMAP[c]||["",""])[1];
 const splitKm=a=>{if(!RUNTYPES.includes(a.type)||!a.distance)return[0,0];const km=a.distance/1000;const zt=a.icu_zone_times;if(!Array.isArray(zt)||!zt.length)return[km,0];const g=id=>{const z=zt.find(x=>x.id===id);return z?(z.secs||0):0;};const tot=zt.reduce((s,z)=>s+(z.secs||0),0)||1;const basis=g("Z1")+g("Z2");return[km*basis/tot,km*(tot-basis)/tot];};
 const predTimeFor=(dist,ef)=>ANCHOR_10K_PACE*(ANCHOR_W/(ef||CP_FALLBACK))*10*Math.pow(dist/10,dist>30?1.08:1.06);
 
@@ -477,6 +498,12 @@ async function render(){
     return;
   }
 
+  // Wetter (Open-Meteo · kein Key · CORS-ok) — nicht-fatal, Dashboard rendert auch ohne
+  let wx=null;
+  try{
+    const wr=await fetch("https://api.open-meteo.com/v1/forecast?latitude=51.46&longitude=7.01&current=temperature_2m,apparent_temperature,weather_code,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation_probability&forecast_days=1&timezone=Europe%2FBerlin");
+    if(wr.ok) wx=await wr.json();
+  }catch(_){}
   const wkey=w=>(w.id||w.date||"").slice(0,10);
   const wsorted=well.slice().sort((a,b)=>wkey(a)<wkey(b)?-1:1);
   const wByDate={}; well.forEach(w=>wByDate[wkey(w)]=w);
@@ -709,7 +736,37 @@ async function render(){
       <div class="kurs-mot">${todayDone?'Einheit im Kasten ✓ – ':''}${kursMot}</div>
       <div class="kurs-meta">${kursStreak>0?`🔥 ${kursStreak} Wo. in Folge im Plan · `:""}Diese Woche ${complPct!=null?complPct+"% der Wochenlast":istLoad+" Load"}</div>
     </div></div>`;
-  document.getElementById("app").innerHTML=kursHero+hero+
+  let weatherCard="";
+  if(wx&&wx.daily&&wx.current){
+    const tmax=Math.round(wx.daily.temperature_2m_max[0]), tmin=Math.round(wx.daily.temperature_2m_min[0]);
+    const code=wx.current.weather_code, curT=Math.round(wx.current.temperature_2m), feels=Math.round(wx.current.apparent_temperature), rh=Math.round(wx.current.relative_humidity_2m);
+    const feelsMax=(wx.hourly&&wx.hourly.apparent_temperature)?Math.round(Math.max(...wx.hourly.apparent_temperature)):feels;
+    const amp=feelsMax>=32?"wx-red":(feelsMax>=28?"wx-amber":(tmax<=2?"wx-blue":"wx-green"));
+    weatherCard=`<div class="card wxcard ${amp}" data-wx="1" tabindex="0" role="button" aria-label="Wetter Stundenverlauf">`+
+      `<span class="wx-ic">${wxIcon(code)}</span>`+
+      `<div class="wx-main"><div class="wx-tmp">↑${tmax}° <small>↓${tmin}°</small></div>`+
+      `<div class="wx-desc">${wxDesc(code)} · jetzt ${curT}° (gefühlt ${feels}°) · ${rh}% rF</div></div>`+
+      `<div class="wx-hint">Essen · Stundenverlauf ›</div></div>`;
+  }
+  function openWeatherModal(){
+    if(!wx||!wx.hourly)return;
+    const H=wx.hourly, n=H.time.length, nowH=new Date().getHours();
+    let rows="";
+    for(let i=0;i<n;i++){
+      const hr=+H.time[i].slice(11,13);
+      if(hr<nowH-1)continue;
+      if(hr%2!==0&&hr!==nowH)continue;
+      const t=Math.round(H.temperature_2m[i]),f=Math.round(H.apparent_temperature[i]),w=Math.round(H.wind_speed_10m[i]),p=H.precipitation_probability?H.precipitation_probability[i]:0,c=H.weather_code[i];
+      rows+=`<tr><td class="wt">${String(hr).padStart(2,"0")}:00</td><td class="c">${wxIcon(c)}</td><td>${t}°<span style="color:var(--muted)"> (${f}°)</span></td><td>${w} km/h</td><td>${p}%</td><td style="color:var(--muted)">${wxDesc(c)}</td></tr>`;
+    }
+    document.body.insertAdjacentHTML("beforeend",`<div class="modal" id="wxmodal"><div class="mbox"><button class="mclose" id="wxclose" aria-label="Schließen">×</button><h3>Wetter Essen — heute</h3><div class="ms">Stundenverlauf (Open-Meteo) · Temp (gefühlt) · Wind · Regenwahrscheinlichkeit</div><table class="wxh"><thead><tr><th>Zeit</th><th></th><th>°C (gef.)</th><th>Wind</th><th>Regen</th><th>Wetter</th></tr></thead><tbody>${rows}</tbody></table></div></div>`);
+    const close=()=>{const x=document.getElementById("wxmodal");if(x)x.remove();document.removeEventListener("keydown",esc);};
+    function esc(e){if(e.key==="Escape")close();}
+    document.addEventListener("keydown",esc);
+    document.getElementById("wxmodal").onclick=e=>{if(e.target.id==="wxmodal")close();};
+    document.getElementById("wxclose").onclick=close;
+  }
+  document.getElementById("app").innerHTML=kursHero+hero+weatherCard+
     `<div class="daterow">Woche <b>${deD(mon)} – ${deD(sun)} ${sun.getFullYear()}</b></div>`+
     consHTML+predHTML+`<div class="grid">${ghead}<div class="grow body">${cells}</div></div>`;
   document.getElementById("footl").textContent="Verbunden mit intervals.icu · Gun · Stand "+pad(today.getHours())+":"+pad(today.getMinutes());
@@ -814,6 +871,7 @@ async function render(){
   {const v2el=document.querySelector(".vo2card");if(v2el){const go=()=>openVo2Modal();v2el.onclick=go;v2el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};}}
   document.querySelectorAll("[data-eid]").forEach(el=>{const go=()=>openWorkoutModal(+el.dataset.eid);el.onclick=go;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};});
   document.querySelectorAll(".rt").forEach(b=>b.onclick=()=>{c2range=b.dataset.r;document.querySelectorAll(".rt").forEach(x=>x.classList.toggle("active",x===b));if(document.getElementById("tab-form").style.display!=="none")buildChart2();});
+  {const wxEl=document.querySelector("[data-wx]");if(wxEl){const go=()=>openWeatherModal();wxEl.onclick=go;wxEl.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};}}
 }
 
 function askKey(){
