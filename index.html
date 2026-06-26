@@ -669,7 +669,7 @@ async function render(){
   const consHTML=`<details class="card chartsd"><summary class="chartsum">📊 Charts · Konsistenz · Form · Vertikal · Erholung · Long Run</summary>
     <div class="tabs"><button class="tb active" data-t="cons">Konsistenz · 16 Wochen</button><button class="tb" data-t="form">Form &amp; Fitness</button><button class="tb" data-t="vert">Vertikal &amp; GAP · 16 Wochen</button><button class="tb" data-t="recov">Erholung · 6 Wochen</button><button class="tb" data-t="lrun">Long Run · 16 Wochen</button></div>
     <div id="tab-cons"><div class="csub">Lauf-Kilometer pro Woche, gestapelt nach Power-Zone: Basis (Z1/Z2) grün, Intensität (Z3+) rot. Ziellinie: Wochenziel bzw. Summe der geplanten Workouts der laufenden Woche (Fallback ${WEEK_GOAL_KM} km).</div><div class="chartbox"><canvas id="cons"></canvas></div></div>
-    <div id="tab-form" style="display:none"><div class="rtoggle"><button class="rt active" data-r="micro">21 Tage</button><button class="rt" data-r="macro">16 Wochen</button></div><div class="csub">Fitness (CTL) blau, steigend = Aufbau. TSB-Fläche: grün = frisch, gelb = ermüdet (produktiver Trainingsbereich). Default = Mikrozyklus (21 Tage).</div><div class="chartbox"><canvas id="ctltsb"></canvas></div></div>
+    <div id="tab-form" style="display:none"><div class="rtoggle"><button class="rt active" data-r="micro">6 Wochen · 42 Tage</button><button class="rt" data-r="macro">16 Wochen</button></div><div class="csub">Fitness (CTL) blau, steigend = Aufbau. TSB-Fläche: grün = frisch, gelb = ermüdet (produktiver Trainingsbereich). 6 Wochen = eine CTL-Zeitkonstante (τ = 42 Tage) — zeigt die Periode, die deine aktuelle Fitness geformt hat.</div><div class="chartbox"><canvas id="ctltsb"></canvas></div></div>
     <div id="tab-vert" style="display:none"><div class="csub">Höhenmeter pro Woche (Trail-Vorbereitung) · GAP = Grade Adjusted Pace (Ø der Woche, im Tooltip ausgeschrieben).</div><div class="chartbox"><canvas id="vertc"></canvas></div></div>
     <div id="tab-recov" style="display:none"><div class="csub">6 Wochen · Schlafdauer als Balken (Farbe = Garmin Sleep Score: ≥90 Excellent grün · 80–89 Good · 70–79 Fair gelb · &lt;70 Poor rot), HRV (blau) und Ruhepuls (rot) als Linien. Hohe HRV + niedriger RHR + hoher Score = erholt.</div><div class="chartbox"><canvas id="recov"></canvas></div></div>
     <div id="tab-lrun" style="display:none"><div class="csub">Längster Lauf pro Woche (Balken, km) · Decoupling Pw:HR (Linie, rechte Achse): <span style="color:#4caf50">●</span> &lt;5% gut · <span style="color:#ffa726">●</span> 5–7% · <span style="color:#ef5350">●</span> &gt;7% kritisch. Gestrichelt = LR-Peak-Ziel 26 km · gepunktet = Renndistanz 18,6 km. Trend sinkenden Decouplings bei steigendem Umfang = wachsende aerobe Basis.</div><div class="chartbox"><canvas id="lrun"></canvas></div></div>
@@ -828,7 +828,7 @@ async function render(){
       if(!total){el.innerHTML='Z2 <b>–</b>';return;}
       const pct=Math.round(under/total*100);
       const col=pct>=85?'var(--ink)':pct>=70?'var(--warn)':'var(--bad)'; // gut=neutral, Farbe nur bei Disziplin-Verlust
-      el.innerHTML=`Z2 <b style="color:${col}">${pct}%</b><small>≤${Z2_CAP} · ${easy.length} Läufe</small>`;
+      el.innerHTML=`Z2 <b style="color:${col}">${pct}%</b><small>≤${Z2_CAP} bpm · ${Z2_WINDOW_D}T · ${easy.length} Läufe</small>`;
     }catch(_){el.innerHTML='Z2 <b>–</b>';}
   })();
 
@@ -850,7 +850,7 @@ async function render(){
   const sTsb=ser.map(w=>+(((w.ctl||0)-(w.atl||0))).toFixed(1));
   let c2range="micro";
   function buildChart2(){
-    const n=c2range==="micro"?Math.min(21,sLab.length):sLab.length;
+    const n=c2range==="micro"?Math.min(42,sLab.length):sLab.length;
     const L=sLab.slice(-n),Ct=sCtl.slice(-n),Tb=sTsb.slice(-n);
     if(chart2){chart2.destroy();chart2=null;}
     chart2=new Chart(document.getElementById("ctltsb"),{type:"line",
