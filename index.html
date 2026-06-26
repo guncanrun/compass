@@ -282,6 +282,8 @@ const API="https://intervals.icu/api/v1";
 const ATHLETE="i183972";
 let KEY=localStorage.getItem("loop_icu_key")||"";
 const ANCHOR_W=290, ANCHOR_10K_PACE=272, CP_FALLBACK=290, WEEK_GOAL_KM=39, BASE_CTL_TARGET=32, RACE_CTL_FALLBACK=50;
+const LR_PEAK_GOAL=26, RACE_DIST_KM=18.6;          // Long-Run-Peak-Ziel & Renndistanz (Seerunde 11.10.)
+const Z2_CAP=155, Z2_WINDOW_D=14, Z2_MAX_RUNS=8;   // Z2-Disziplin: Kanon-HF-Decke (bpm), Fenster (Tage), max. Läufe
 
 const MON=["Jan","Feb","März","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
 const DOW=["MO","DI","MI","DO","FR","SA","SO"];
@@ -488,7 +490,7 @@ function acwrGauge(r){
     <div class="glabels"><span>0,80</span><span>1,30</span><span>1,50</span></div>`;
 }
 
-let chart,chart2,chart3,chart4,entryReg=[];
+let chart,chart2,chart3,chart4,chart5,entryReg=[];
 async function render(){
   const err=document.getElementById("err");
   const today=new Date(), todayKey=ymd(today);
@@ -583,12 +585,12 @@ async function render(){
   (evsTargets||[]).forEach(e=>{const k=(e.start_date_local||"").slice(0,10);if(!k)return;const wk=isoWeek(new Date(k));const km=(e.distance_target||0)/1000;const t=tgtByWeek[wk]=tgtByWeek[wk]||{km:0};t.km+=km;});
   const planByWeek={};
   (evsHist||[]).forEach(e=>{if(e.category!=="WORKOUT")return;const k=(e.start_date_local||"").slice(0,10);if(!k)return;const wk=isoWeek(new Date(k));planByWeek[wk]=(planByWeek[wk]||0)+(estKm(e)||0);});
-  const wkLabels=[],wkBasis=[],wkInten=[],wkElev=[],wkGap=[],wkEftp=[],wkGoalKm=[];let lastE=null,lastGoal=WEEK_GOAL_KM;
+  const wkLabels=[],wkBasis=[],wkInten=[],wkElev=[],wkGap=[],wkEftp=[],wkGoalKm=[],wkLongRun=[];let lastE=null,lastGoal=WEEK_GOAL_KM;
   for(let i=15;i>=0;i--){const ws=new Date(mon);ws.setDate(ws.getDate()-i*7);const wk=isoWeek(ws);const list=aByWeek[wk]||[];
-    let b=0,n=0,elev=0,gt=0,gkm=0;
-    list.forEach(a=>{const sp=splitKm(a);b+=sp[0];n+=sp[1];if(RUNTYPES.includes(a.type)){elev+=(a.total_elevation_gain||0);if(a.gap&&a.distance){gt+=a.distance/a.gap;gkm+=a.distance/1000;}}});
+    let b=0,n=0,elev=0,gt=0,gkm=0,lr=0;   // lr = längster Einzellauf der Woche (km)
+    list.forEach(a=>{const sp=splitKm(a);b+=sp[0];n+=sp[1];if(RUNTYPES.includes(a.type)){elev+=(a.total_elevation_gain||0);if(a.distance){const km=a.distance/1000;if(km>lr)lr=km;}if(a.gap&&a.distance){gt+=a.distance/a.gap;gkm+=a.distance/1000;}}});
     if(eftpByWeek[wk])lastE=eftpByWeek[wk];
-    wkLabels.push("KW"+wk);wkBasis.push(+b.toFixed(1));wkInten.push(+n.toFixed(1));wkElev.push(Math.round(elev));wkGap.push(gkm>0?+(gt/gkm).toFixed(0):null);wkEftp.push(lastE||eftp);
+    wkLabels.push("KW"+wk);wkBasis.push(+b.toFixed(1));wkInten.push(+n.toFixed(1));wkElev.push(Math.round(elev));wkGap.push(gkm>0?+(gt/gkm).toFixed(0):null);wkEftp.push(lastE||eftp);wkLongRun.push(+lr.toFixed(1));
     if(tgtByWeek[wk])lastGoal=+tgtByWeek[wk].km.toFixed(1);else if(i===0&&planByWeek[wk])lastGoal=+planByWeek[wk].toFixed(1);wkGoalKm.push(lastGoal);}
 
   const wkStart=ymd(mon),wkEnd=ymd(sun);
@@ -618,6 +620,19 @@ async function render(){
   const acwr=c28>0?+(atl/c28).toFixed(2):0;
   const acwrColor=acwr<0.8?'var(--muted)':acwr<=1.3?'var(--ink)':acwr<=1.5?'var(--warn)':'var(--bad)';
   const acwrPill=acwr<0.8?{t:'Unterbelastung',c:'warn'}:acwr<=1.3?{t:'Optimalbereich',c:'grey'}:acwr<=1.5?{t:'Überlastungszone',c:'warn'}:{t:'Übertrainingsrisiko',c:'bad'};
+  // --- Trainings-Monotonie & Strain (Foster) ---------------------------------
+  // Monotonie = Ø Tagesload ÷ SD Tagesload über 7 Tage. Ruhetage zählen als 0 und
+  // senken die Monotonie korrekt. Hohe Monotonie (>2) = zu gleichförmige Last =
+  // Verletzungs-/Übertrainingsrisiko. Strain = Wochenload × Monotonie.
+  // Dient als zweiter Verletzungs-Wächter neben der A:C-Ratio.
+  const dailyLoads7=[];
+  for(let i=6;i>=0;i--){const d=new Date(today);d.setDate(d.getDate()-i);const w=wByDate[ymd(d)];dailyLoads7.push(w&&w.atlLoad!=null?w.atlLoad:0);}
+  const load7Sum=dailyLoads7.reduce((s,x)=>s+x,0);
+  const load7Mean=load7Sum/7;
+  const load7SD=Math.sqrt(dailyLoads7.reduce((s,x)=>s+(x-load7Mean)*(x-load7Mean),0)/7);
+  const monotony=load7Sum===0?null:(load7SD>0?+(load7Mean/load7SD).toFixed(2):9.99); // SD=0 bei Last>0 → maximal monoton
+  const strain=monotony!=null?Math.round(load7Sum*monotony):null;
+  const monoColor=monotony==null?'var(--muted)':monotony<1.5?'var(--ink)':monotony<=2?'var(--warn)':'var(--bad)'; // gut=neutral, Farbe nur bei Risiko
   const vo2Series=wsorted.filter(w=>w.vo2max!=null).map(w=>({d:(w.id||w.date||"").slice(0,10),v:w.vo2max}));
   const vo2Cur=vo2Series.length?vo2Series[vo2Series.length-1].v:(cur.vo2max||null);
   let vo2Past=null;
@@ -643,19 +658,21 @@ async function render(){
     <div class="col"><div class="lbl"><span class="tip">Workload · A:C<span class="tt">Acute:Chronic Workload Ratio: akute (7-Tage, ATL) zu chronischer (28-Tage) Belastung. 0,80–1,30 optimal · 1,30–1,50 überfordernd · &gt;1,50 Übertrainingsrisiko · &lt;0,80 Untertraining. Nur dauer-/HF-basiert (TRIMP).</span></span></div>
       <div class="big mono" style="color:${acwrColor}">${acwr.toFixed(2).replace('.',',')}</div><span class="pill ${acwrPill.c}">${acwrPill.t}</span>
       ${acwrGauge(acwr)}
-      <div class="sub">akute 7-T-Last ${atl.toFixed(0)} ÷ chronische 28-T ${c28.toFixed(0)}</div></div>
+      <div class="sub">akute 7-T-Last ${atl.toFixed(0)} ÷ chronische 28-T ${c28.toFixed(0)}</div>
+      <div class="sub" style="margin-top:3px">Monotonie <b style="color:${monoColor}">${monotony!=null?monotony.toFixed(2).replace('.',','):'–'}</b> · Strain ${strain!=null?strain:'–'} <span class="tip">ⓘ<span class="tt">Foster: Monotonie = Ø ÷ SD der Tageslast (7 T, Ruhetage als 0). &lt;1,5 ok · 1,5–2,0 beobachten · &gt;2,0 zu gleichförmig = Risiko. Strain = Wochenlast × Monotonie — zweiter Wächter neben A:C.</span></span></div></div>
     <div class="col"><div class="lbl">Nächstes A-Race</div>${raceHTML}</div>
   </div>`;
 
   const mNote=(preds.find(p=>p.note)||{}).note||"";
   const predHTML=`<details class="card"><summary style="cursor:pointer;font-weight:700;font-size:15px">Pace-Predictor</summary><div class="csub" style="margin-top:8px">Prognose aus aktuellem eFTP ${eftp} W (Anker 290 W ≈ 4:32/km · Riegel) — Schätzung, verbessert sich mit der Form.</div>
     <div class="pred">${preds.map(p=>`<div class="p" data-d="${p.dist}" data-l="${p.d}" tabindex="0" role="button" aria-label="${p.d} Prognose-Verlauf"><div class="pd">${p.d}</div><div class="pt mono">${p.time}</div><div class="pp">${p.pace} /km</div><div class="pv">${p.verbal}</div></div>`).join("")}</div>${mNote?`<div class="predfoot">${mNote}</div>`:""}</details>`;
-  const consHTML=`<details class="card chartsd"><summary class="chartsum">📊 Charts · Konsistenz · Form · Vertikal · Erholung</summary>
-    <div class="tabs"><button class="tb active" data-t="cons">Konsistenz · 16 Wochen</button><button class="tb" data-t="form">Form &amp; Fitness</button><button class="tb" data-t="vert">Vertikal &amp; GAP · 16 Wochen</button><button class="tb" data-t="recov">Erholung · 6 Wochen</button></div>
+  const consHTML=`<details class="card chartsd"><summary class="chartsum">📊 Charts · Konsistenz · Form · Vertikal · Erholung · Long Run</summary>
+    <div class="tabs"><button class="tb active" data-t="cons">Konsistenz · 16 Wochen</button><button class="tb" data-t="form">Form &amp; Fitness</button><button class="tb" data-t="vert">Vertikal &amp; GAP · 16 Wochen</button><button class="tb" data-t="recov">Erholung · 6 Wochen</button><button class="tb" data-t="lrun">Long Run · 16 Wochen</button></div>
     <div id="tab-cons"><div class="csub">Lauf-Kilometer pro Woche, gestapelt nach Power-Zone: Basis (Z1/Z2) grün, Intensität (Z3+) rot. Ziellinie: Wochenziel bzw. Summe der geplanten Workouts der laufenden Woche (Fallback ${WEEK_GOAL_KM} km).</div><div class="chartbox"><canvas id="cons"></canvas></div></div>
     <div id="tab-form" style="display:none"><div class="rtoggle"><button class="rt active" data-r="micro">21 Tage</button><button class="rt" data-r="macro">16 Wochen</button></div><div class="csub">Fitness (CTL) blau, steigend = Aufbau. TSB-Fläche: grün = frisch, gelb = ermüdet (produktiver Trainingsbereich). Default = Mikrozyklus (21 Tage).</div><div class="chartbox"><canvas id="ctltsb"></canvas></div></div>
     <div id="tab-vert" style="display:none"><div class="csub">Höhenmeter pro Woche (Trail-Vorbereitung) · GAP = Grade Adjusted Pace (Ø der Woche, im Tooltip ausgeschrieben).</div><div class="chartbox"><canvas id="vertc"></canvas></div></div>
     <div id="tab-recov" style="display:none"><div class="csub">6 Wochen · Schlafdauer als Balken (Farbe = Garmin Sleep Score: ≥90 Excellent grün · 80–89 Good · 70–79 Fair gelb · &lt;70 Poor rot), HRV (blau) und Ruhepuls (rot) als Linien. Hohe HRV + niedriger RHR + hoher Score = erholt.</div><div class="chartbox"><canvas id="recov"></canvas></div></div>
+    <div id="tab-lrun" style="display:none"><div class="csub">Längster Lauf pro Woche (km) über 16 Wochen. Gestrichelt = Long-Run-Peak-Ziel 26 km (Aufbau bis Phase 3), gepunktet = Renndistanz Seerunde 18,6 km. Zeigt den Aufbau der Grundlagenausdauer Richtung A-Race.</div><div class="chartbox"><canvas id="lrun"></canvas></div></div>
   </details>`;
 
   let ghead=`<div class="grow ghead"><div class="gc">KW</div>`+DOW.map(d=>`<div class="gc">${d}</div>`).join("")+`<div class="gc">WOCHE</div></div>`;
@@ -720,6 +737,7 @@ async function render(){
     `<span class="rd">${hrv7Cls?`<span class="dot ${hrv7Cls}"></span>`:""}HRV <b>${cur.hrv!=null?cur.hrv:'–'}</b><small>Ø${hrv7!=null?Math.round(hrv7):'–'} · B${hrvBase!=null?Math.round(hrvBase):'–'}</small></span>`+
     `<span class="rd">${rhr7Cls?`<span class="dot ${rhr7Cls}"></span>`:""}RHR <b>${cur.restingHR!=null?cur.restingHR:'–'}</b><small>Ø${rhr7!=null?Math.round(rhr7):'–'}</small></span>`+
     `<span class="rd">😴 <b>${_slp?hm(_slp):'–'}</b></span>`+
+    `<span class="rd" id="z2disc" title="Anteil der Easy-Lauf-Zeit unter der Z2-Decke 155 bpm (14 Tage)">Z2 <b>…</b></span>`+
   `</div>`;
   const actLoadWk={}; (acts16||[]).forEach(a=>{const k=(a.start_date_local||"").slice(0,10);if(k){const wk=isoWeek(new Date(k));actLoadWk[wk]=(actLoadWk[wk]||0)+(a.icu_training_load||0);}});
   const tgtLoadWk={}; (evsTargets||[]).forEach(e=>{const k=(e.start_date_local||"").slice(0,10);if(k)tgtLoadWk[isoWeek(new Date(k))]=e.load_target||0;});
@@ -783,7 +801,38 @@ async function render(){
     consHTML+predHTML+`<div class="grid">${ghead}<div class="grow body">${cells}</div></div>`;
   document.getElementById("footl").textContent="Verbunden mit intervals.icu · Gun · Stand "+pad(today.getHours())+":"+pad(today.getMinutes());
 
-  if(chart)chart.destroy(); if(chart2){chart2.destroy();chart2=null;} if(chart3){chart3.destroy();chart3=null;} if(chart4){chart4.destroy();chart4=null;}
+  // --- Z2-Disziplin: % der Easy-Lauf-Zeit ≤155 bpm (Kanon-Z2-Decke), 14 Tage ----
+  // Bewusst aus dem HF-Stream gegen die feste 155-bpm-Decke gerechnet (NICHT über
+  // intervals-Zonen, die ggf. auf Laborwerten 158/166 stehen). Spiegelt die Tendenz,
+  // Easy-Läufe zu heiß zu laufen. Async nachgeladen → blockt das Initial-Rendern nicht.
+  (async function fillZ2Discipline(){
+    const el=document.getElementById("z2disc"); if(!el)return;
+    const since=ymd(new Date(today.getTime()-Z2_WINDOW_D*86400000));
+    const HARD_RE=/intervall|interval|tempo|schwelle|threshold|test|race|rennen|fahrtspiel|steiger|vo2|wettkampf/i;
+    // "Easy" = Lauf, kein Rennen, kein harter Name, Intensitätsanteil (Power Z3+) < 15 %.
+    const easy=acts16.filter(a=>RUNTYPES.includes(a.type)
+      && (a.start_date_local||"").slice(0,10)>=since
+      && !(a.category||"").startsWith("RACE")
+      && !HARD_RE.test(a.name||"")
+      && (()=>{const sp=splitKm(a);const t=sp[0]+sp[1];return t>0?sp[1]/t<0.15:true;})()
+    ).slice(-Z2_MAX_RUNS);
+    if(!easy.length){el.innerHTML='Z2 <b>–</b>';return;}
+    try{
+      let under=0,total=0;
+      // HF-Streams parallel laden; einzelne Fehlschläge (kein HF) werden ignoriert.
+      const streams=await Promise.all(easy.map(a=>api(`/activity/${a.id}/streams?types=heartrate`).catch(()=>null)));
+      streams.forEach(s=>{
+        const hr=Array.isArray(s)?((s.find(x=>x&&x.type==="heartrate")||{}).data):(s&&s.heartrate&&s.heartrate.data);
+        if(Array.isArray(hr))hr.forEach(v=>{if(typeof v==="number"){total++;if(v<=Z2_CAP)under++;}});
+      });
+      if(!total){el.innerHTML='Z2 <b>–</b>';return;}
+      const pct=Math.round(under/total*100);
+      const col=pct>=85?'var(--ink)':pct>=70?'var(--warn)':'var(--bad)'; // gut=neutral, Farbe nur bei Disziplin-Verlust
+      el.innerHTML=`Z2 <b style="color:${col}">${pct}%</b><small>≤${Z2_CAP} · ${easy.length} Läufe</small>`;
+    }catch(_){el.innerHTML='Z2 <b>–</b>';}
+  })();
+
+  if(chart)chart.destroy(); if(chart2){chart2.destroy();chart2=null;} if(chart3){chart3.destroy();chart3=null;} if(chart4){chart4.destroy();chart4=null;} if(chart5){chart5.destroy();chart5=null;}
   chart=new Chart(document.getElementById("cons"),{type:"bar",
     data:{labels:wkLabels,datasets:[
       {label:"Basis (Z1/Z2)",data:wkBasis,backgroundColor:C_BASE,borderRadius:2,stack:"km",order:3},
@@ -843,16 +892,30 @@ async function render(){
           yhr:{position:"right",suggestedMin:30,title:{display:true,text:"HRV ms / RHR bpm"},grid:{drawOnChartArea:false}},
           x:{grid:{display:false},ticks:{font:{size:10},autoSkip:true,maxTicksLimit:10}}}}});
   }
+  // Long-Run-Progression: längster Lauf je Woche (16 Wochen) als Balken + zwei
+  // Referenzlinien (Long-Run-Peak-Ziel 26 km, Renndistanz 18,6 km). Lazy-Build wie Chart2–4.
+  function buildChart5(){
+    chart5=new Chart(document.getElementById("lrun"),{type:"bar",
+      data:{labels:wkLabels,datasets:[
+        {label:"Längster Lauf",data:wkLongRun,backgroundColor:"#2f6fb0",borderRadius:2,order:3},
+        {type:"line",label:"LR-Peak-Ziel ("+LR_PEAK_GOAL+" km)",data:wkLabels.map(()=>LR_PEAK_GOAL),borderColor:C_LINE,borderDash:[6,4],borderWidth:2,pointRadius:0,order:1},
+        {type:"line",label:"Renndistanz ("+RACE_DIST_KM.toString().replace(".",",")+" km)",data:wkLabels.map(()=>RACE_DIST_KM),borderColor:"#c2691c",borderDash:[3,3],borderWidth:1.5,pointRadius:0,order:2}]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:"index"},
+        plugins:{legend:{display:true,labels:{boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:c=>c.dataset.type==="line"?c.dataset.label:"Längster Lauf: "+(c.parsed.y!=null?c.parsed.y.toFixed(1)+" km":"–")}}},
+        scales:{y:{beginAtZero:true,title:{display:true,text:"km"},grid:{color:GRID}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  }
   document.querySelectorAll(".tb").forEach(b=>b.onclick=()=>{
     const t=b.dataset.t;
     document.getElementById("tab-cons").style.display=t==="cons"?"block":"none";
     document.getElementById("tab-form").style.display=t==="form"?"block":"none";
     document.getElementById("tab-vert").style.display=t==="vert"?"block":"none";
     document.getElementById("tab-recov").style.display=t==="recov"?"block":"none";
+    document.getElementById("tab-lrun").style.display=t==="lrun"?"block":"none";
     document.querySelectorAll(".tb").forEach(x=>x.classList.toggle("active",x.dataset.t===t));
     if(t==="form"){ if(!chart2)buildChart2(); else chart2.resize(); }
     else if(t==="vert"){ if(!chart3)buildChart3(); else chart3.resize(); }
     else if(t==="recov"){ if(!chart4)buildChart4(); else chart4.resize(); }
+    else if(t==="lrun"){ if(!chart5)buildChart5(); else chart5.resize(); }
     else { chart.resize(); }
   });
 
@@ -884,7 +947,7 @@ async function render(){
   document.querySelectorAll("[data-eid]").forEach(el=>{const go=()=>openWorkoutModal(+el.dataset.eid);el.onclick=go;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};});
   document.querySelectorAll(".rt").forEach(b=>b.onclick=()=>{c2range=b.dataset.r;document.querySelectorAll(".rt").forEach(x=>x.classList.toggle("active",x===b));if(document.getElementById("tab-form").style.display!=="none")buildChart2();});
   {const wxEl=document.querySelector("[data-wx]");if(wxEl){const go=()=>openWeatherModal();wxEl.onclick=go;wxEl.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};}}
-  {const _chd=document.querySelector("details.chartsd");if(_chd)_chd.addEventListener("toggle",()=>{if(!_chd.open)return;const at=(document.querySelector(".tb.active")||{}).dataset;const t=at?at.t:"cons";const c=t==="form"?chart2:t==="vert"?chart3:t==="recov"?chart4:chart;if(c)c.resize();});}
+  {const _chd=document.querySelector("details.chartsd");if(_chd)_chd.addEventListener("toggle",()=>{if(!_chd.open)return;const at=(document.querySelector(".tb.active")||{}).dataset;const t=at?at.t:"cons";const c=t==="form"?chart2:t==="vert"?chart3:t==="recov"?chart4:t==="lrun"?chart5:chart;if(c)c.resize();});}
 }
 
 function askKey(){
