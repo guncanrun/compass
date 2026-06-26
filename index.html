@@ -353,7 +353,7 @@ function comboHTML(act,ev){
   const mp=[hr?Math.round(hr)+" bpm":null,w?Math.round(w)+" W":null,pc?pc+"/km":null].filter(Boolean).join(" · ");
   const sp=[];const km=ev.distance?ev.distance/1000:(estKm(ev)||0);if(km)sp.push((ev.distance?"":"~")+km.toFixed(1)+" km");if(pLoad)sp.push(pLoad+" L");
   const idx=entryReg.push({e:act,kind:"done",plan:ev})-1;
-  return `<div class="entry combo" data-eid="${idx}" tabindex="0" role="button" style="border-left-color:${m.c}"><div class="eh"><span style="color:${m.c}">${m.lbl}</span><span class="done">✓ absolviert</span>${cR!=null?`<span class="cpill" style="margin-left:auto;background:${cCol}">${cR}%</span>`:``}</div><div class="nm">${act.name||ev.name||m.lbl}</div><div class="si">IST ${ip.join(" · ")}</div>${mp?`<div class="met">${mp}</div>`:``}<div class="si soll">SOLL ${sp.join(" · ")||"—"}${ev.name&&ev.name!==act.name?` · ${ev.name}`:""}</div></div>`;
+  return `<div class="entry combo" data-eid="${idx}" tabindex="0" role="button" style="border-left-color:${m.c}"><div class="eh"><span style="color:${m.c}">${m.lbl}</span><span class="done">✓ absolviert</span>${cR!=null?`<span class="cpill" style="margin-left:auto;background:${cCol}">${cR}%</span>`:``}</div><div class="nm">${ev.name||act.name||m.lbl}</div><div class="si">IST ${ip.join(" · ")}</div>${mp?`<div class="met">${mp}</div>`:``}<div class="si soll">SOLL ${sp.join(" · ")||"—"}</div></div>`;
 }
 // Ein Band (top/mid) eines Tages: paart absolvierte mit geplanten Einheiten zu einer Kachel
 function dayBand(da,de,band,isPast){
@@ -441,7 +441,7 @@ function openWorkoutModal(idx){
   }
   document.body.insertAdjacentHTML("beforeend",`<div class="modal" id="wmodal"><div class="mbox"><button class="mclose" id="wmclose" aria-label="Schließen">×</button>
     <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:${m.c}">${m.lbl} · ${tag}</div>
-    <h3>${e.name||m.lbl}</h3><div class="ms">${dlabel}</div>
+    <h3>${(o.plan&&o.plan.name)||e.name||m.lbl}</h3><div class="ms">${dlabel}</div>
     ${badges?`<div class="wmetr">${badges}</div>`:""}
     ${impHTML}
     ${sumHTML}
@@ -752,11 +752,11 @@ async function render(){
       <div class="kurs-meta">${kursStreak>0?`🔥 ${kursStreak} Wo. in Folge im Plan · `:""}Diese Woche ${complPct!=null?complPct+"% der Wochenlast":istLoad+" Load"}</div>
     </div></div>`;
   if(wx&&wx.daily&&wx.current){
-    const tmax=Math.round(wx.daily.temperature_2m_max[0]), tmin=Math.round(wx.daily.temperature_2m_min[0]), code=wx.current.weather_code;
+    const tmax=Math.round(wx.daily.temperature_2m_max[0]), tmin=Math.round(wx.daily.temperature_2m_min[0]), code=wx.current.weather_code, tnow=Math.round(wx.current.temperature_2m), feelsNow=Math.round(wx.current.apparent_temperature);
     const feelsMax=(wx.hourly&&wx.hourly.apparent_temperature)?Math.round(Math.max(...wx.hourly.apparent_temperature)):Math.round(wx.current.apparent_temperature);
     const amp=feelsMax>=32?"wx-red":(feelsMax>=28?"wx-amber":(tmax<=2?"wx-blue":"wx-green"));
     const _wc=document.getElementById("wxchip");
-    if(_wc){_wc.className="wxchip "+amp;_wc.innerHTML=`${wxIcon(code)} ${tmax}°<small>/${tmin}°</small>`;}
+    if(_wc){_wc.className="wxchip "+amp;_wc.innerHTML=`${wxIcon(code)} jetzt ${tnow}°<small> gef ${feelsNow}° · ↑${tmax} ↓${tmin}</small>`;}
   } else { const _wc=document.getElementById("wxchip"); if(_wc)_wc.style.display="none"; }
   function openWeatherModal(){
     if(!wx||!wx.hourly)return;
