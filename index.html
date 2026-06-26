@@ -447,8 +447,11 @@ function openWorkoutModal(idx){
     ${sumHTML}
     ${tizHTML}
     ${desc?`<div class="wlbl">${kind==="done"?"Notiz":"Workout"}</div><pre class="wdesc">${desc.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre>`:""}
+    <div id="wcoach"></div>
     ${links}
   </div></div>`);
+  // Coach-Notes: intervals-Kommentare (NICHT die Strava-gesyncte Beschreibung) — privat, nur via deinen API-Key sichtbar
+  if(kind==="done"&&e.id){api("/activity/"+e.id+"/messages").then(ms=>{const arr=(Array.isArray(ms)?ms:[]).map(m=>((m&&(m.content||m.message))||"").trim()).filter(Boolean);const el=document.getElementById("wcoach");if(el&&arr.length){el.innerHTML=`<div class="wlbl">🧭 Coach</div><pre class="wdesc">${arr.join("\n\n").replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre>`;}}).catch(()=>{});}
   function close(){const x=document.getElementById("wmodal");if(x)x.remove();document.removeEventListener("keydown",esc);}
   function esc(ev){if(ev.key==="Escape")close();}
   document.addEventListener("keydown",esc);
