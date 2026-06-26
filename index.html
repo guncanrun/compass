@@ -721,7 +721,7 @@ async function render(){
     const comp=(typeof todayDoneA.compliance==="number")?Math.round(todayDoneA.compliance):(pl&&todayDoneA.icu_training_load?Math.round(todayDoneA.icu_training_load/pl*100):null);
     const bits=[todayDoneA.distance?(todayDoneA.distance/1000).toFixed(1)+" km":null,todayDoneA.icu_training_load?todayDoneA.icu_training_load+" L":null].filter(Boolean).join(" · ");
     const cc=comp==null?"var(--muted)":(comp>=85&&comp<=130?"var(--good)":"var(--warn)");
-    todayCmd=`<div class="kurs-today"><span class="t-lbl done">✓ ${todayDoneA.name||"erledigt"}</span> ${bits}${comp!=null?` · <b style="color:${cc}">${comp}%</b>`:""}<button class="t-btn" data-eid="${tIdx}">Details</button></div>`;
+    todayCmd=`<div class="kurs-today"><span class="t-lbl done">✓ ${(todayPlanEvRaw&&todayPlanEvRaw.name)||todayDoneA.name||"erledigt"}</span> ${bits}${comp!=null?` · <b style="color:${cc}">${comp}%</b>`:""}<button class="t-btn" data-eid="${tIdx}">Details</button></div>`;
   } else if(todayPlanEvRaw){
     tIdx=entryReg.push({e:{...todayPlanEvRaw,_meta:sportMeta(todayPlanEvRaw.type||"Run")},kind:"plan"})-1;
     const km=todayPlanEvRaw.distance?(todayPlanEvRaw.distance/1000).toFixed(1)+" km":(estKm(todayPlanEvRaw)?"~"+estKm(todayPlanEvRaw).toFixed(1)+" km":"");
